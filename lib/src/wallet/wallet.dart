@@ -83,7 +83,16 @@ class TronWallet {
     return EthereumAddress.fromHex(tronAddress.replaceFirst('41', '0x'));
   }
 
-  static String EthAddressTotronAddress(EthereumAddress ethAddress) {
+  static String ethAddressToTronAddress(EthereumAddress ethAddress) {
     return hexToBs58Address(ethAddress.hex.replaceFirst('0x', '41'));
+  }
+
+  static bool isValidBs58Address(String address) {
+    try {
+      var decodedAddr = bs58ToHexAddress(address);
+      return decodedAddr.startsWith('41') && decodedAddr.length == 42;
+    } catch (e) {
+      return false;
+    }
   }
 }
