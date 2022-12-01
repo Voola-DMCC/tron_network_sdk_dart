@@ -8,10 +8,10 @@ class Transaction {
   String? txID;
   Transaction_RawData? rawData;
   String? rawDataHex;
-
+  bool? visible;
   String? rawDataJsonRaw;
 
-  Transaction({this.ret, this.signature, this.txID, this.rawData, this.rawDataHex});
+  Transaction({this.ret, this.visible, this.signature, this.txID, this.rawData, this.rawDataHex});
 
   Transaction.fromJson(Map<String, dynamic> json) {
     if (json['ret'] != null) {
@@ -22,6 +22,7 @@ class Transaction {
     }
     if (json['signature'] != null) signature = json['signature'].cast<String>();
     txID = json['txID'];
+    visible = json['visible'];
     rawDataJsonRaw = conv.json.encode(json['raw_data']);
     rawData = json['raw_data'] != null ? Transaction_RawData.fromJson(json['raw_data']) : null;
     rawDataHex = json['raw_data_hex'];

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:tron_network_sdk/src/http_api/models/block.dart';
-import 'package:tron_network_sdk/src/http_api/models/contractCallResponse.dart';
+import 'package:tron_network_sdk/src/http_api/models/contract_call_response.dart';
 import 'package:tron_network_sdk/src/http_api/models/transaction.dart';
 import 'package:tron_network_sdk/src/http_api/models/transaction_info.dart';
 
@@ -10,6 +10,7 @@ import 'package:tron_network_sdk/src/wallet/wallet.dart';
 import 'package:web3dart/crypto.dart';
 
 import 'models/account_resource.dart';
+import 'models/broadcast_response.dart';
 import 'models/contract_info.dart';
 import 'models/validate_address.dart';
 import 'models/account.dart';
@@ -38,10 +39,10 @@ class HTTPApiClient {
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         throw "API Request code: ${resp.statusCode} \n body: ${resp.body}";
       }
-      //print("=======================");
-      //print(resp.statusCode);
-      //print(resp.body);
-      //print("=======================");
+      print("=======================");
+      print(resp.statusCode);
+      print(resp.body);
+      print("=======================");
 
       if (imageResult) return resp.bodyBytes;
       if (stringResult) {
@@ -152,7 +153,7 @@ class HTTPApiClient {
 
   ///Query historical energy unit price
   Future<String> getEnergyPrices() async {
-    return (await fetch('wallet/gettransactioninfobyid'))['prices'];
+    return (await fetch('wallet/getenergyprices'))['prices'];
   }
 
   ///Query historical energy unit price
@@ -209,26 +210,36 @@ class HTTPApiClient {
     return Transaction.fromJson(await fetch('wallet/createtransaction', method: 'POST', body: json.encode(txBody)));
   }
 
-  //TODO
-  Future<dynamic> broadcastTransaction({
+  /// Broadcast signed transaction
+  ///
+  /// obtain parameters for call from [createTransaction] or [triggerSmartContract] method;
+  ///
+  Future<BroadcastResponse> broadcastTransaction({
     required String txID,
     required String rawDataJson,
     required String rawDataHex,
     required List<String> signatures,
-    bool visible = false,
   }) async {
+    signatures = signatures.map((e) {
+      if (!e.startsWith('0x'))
+        return '0x$e';
+      else
+        return e;
+    }).toList();
     final body = {
       "txID": txID,
       "raw_data": rawDataJson,
       "raw_data_hex": rawDataHex,
       "signature": signatures,
-      "visible": visible,
     };
-    return await fetch('wallet/broadcasttransaction', method: 'POST', body: json.encode(body));
+    return BroadcastResponse.fromJson(await fetch('wallet/broadcasttransaction', method: 'POST', body: json.encode(body)));
   }
 
-  //TODO
-  Future<dynamic> sendTrx({
+  /// Send some TRX amount
+  ///
+  /// This method creates, signs and sends a transaction.
+  ///
+  Future<BroadcastResponse> sendTrx({
     required TronWallet from,
     required String to,
     required int amount,
@@ -256,11 +267,21 @@ class HTTPApiClient {
   /// of a contract for contract data query; or Invoke the non-readonly function
   /// of a contract for predicting whether the transaction can be successfully
   /// executed or estimating the energy consumption
+  ///
+  /// [contractAddress]  - smart contract address
+  ///
+  /// [functionSelector] - called function signature
+  ///
+  /// [encodedParamsHex] - encoded called function parameters in hex string
+  ///
+  /// [fromAddress] - caller`s address
+  ///
   Future<ContractCallResponse> triggerConstantContract({
     required String contractAddress,
     required String functionSelector,
     required String encodedParamsHex,
     required String fromAddress,
+    int? feeLimit,
   }) async {
     contractAddress = _checkHexAddr(contractAddress);
     fromAddress = _checkHexAddr(fromAddress);
@@ -268,18 +289,52 @@ class HTTPApiClient {
       "owner_address": fromAddress,
       "contract_address": contractAddress,
       "function_selector": functionSelector,
+      if (feeLimit != null) "fee_limit": feeLimit,
       "parameter": encodedParamsHex,
     };
     return ContractCallResponse.fromJson(await fetch('wallet/triggerconstantcontract', method: 'POST', body: json.encode(body)));
   }
 
-  /// Trigger smart-contract method that requires transaction sending
-  /// TODO
-  //Future<ContractCallResponse> triggerSmartContract({
-  //  required String contractAddress,
-  //}) async {
-  //  contractAddress = _checkHexAddr(contractAddress);
-//
-  //  return ContractCallResponse.fromJson(await fetch('wallet/triggersmartcontract', method: 'POST', body: json.encode({'value': contractAddress})));
-  //}
+  /// Trigger smart-contract method that requires transaction sending.
+  ///
+  /// Returns TransactionExtention, which contains the unsigned Transaction. For send - call broadcast.
+  ///
+  /// [contractAddress]  - smart contract address
+  ///
+  /// [functionSelector] - called function signature
+  ///
+  /// [encodedParamsHex] - encoded called function parameters in hex string
+  ///
+  /// [callValue] - Amount of TRX transferred with this transaction, measured in SUN (1 TRX = 1,000,000 SUN).
+  ///
+  /// [feeLimit] - Maximum TRX consumption, measured in SUN (1 TRX = 1,000,000 SUN).
+  ///
+  /// [fromAddress] - caller`s address
+  ///
+  /// [permissionId] - Optional, for multi-signature
+  ///
+  Future<ContractCallResponse> triggerSmartContract({
+    required String contractAddress,
+    required String functionSelector,
+    required String encodedParamsHex,
+    int? callValue = 0,
+    required int feeLimit,
+    required String fromAddress,
+    int? permissionId,
+  }) async {
+    contractAddress = _checkHexAddr(contractAddress);
+    fromAddress = _checkHexAddr(fromAddress);
+
+    final body = {
+      "owner_address": fromAddress,
+      "contract_address": contractAddress,
+      "function_selector": functionSelector,
+      "parameter": encodedParamsHex,
+      "fee_limit": feeLimit,
+      "call_value": callValue,
+      if (permissionId != null) "permission_id": permissionId,
+    };
+
+    return ContractCallResponse.fromJson(await fetch('wallet/triggersmartcontract', method: 'POST', body: json.encode(body)));
+  }
 }

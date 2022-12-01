@@ -12,7 +12,7 @@ class ContractCallResponse {
   ContractCallResponse.fromJson(Map<String, dynamic> json) {
     result = json['result']['result'];
     energyUsed = json['energy_used'];
-    constantResult = json['constant_result'].cast<String>();
+    if (json['constant_result'] != null) constantResult = json['constant_result'].cast<String>();
     transaction = json['transaction'] != null ? Transaction.fromJson(json['transaction']) : null;
     if (json['internal_transactions'] != null) {
       internalTransactions = <InternalTransaction>[];
