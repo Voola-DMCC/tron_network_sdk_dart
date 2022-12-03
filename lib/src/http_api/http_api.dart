@@ -1,32 +1,27 @@
 import 'dart:convert';
-
-import 'package:http/http.dart' as http;
-import 'package:tron_network_sdk/src/http_api/models/block.dart';
-import 'package:tron_network_sdk/src/http_api/models/contract_call_response.dart';
-import 'package:tron_network_sdk/src/http_api/models/transaction.dart';
-import 'package:tron_network_sdk/src/http_api/models/transaction_info.dart';
-
-import 'package:tron_network_sdk/src/wallet/wallet.dart';
 import 'package:web3dart/crypto.dart';
+import 'package:http/http.dart' as http;
 
-import 'models/account_resource.dart';
-import 'models/broadcast_response.dart';
-import 'models/contract_info.dart';
-import 'models/validate_address.dart';
+import '../wallet/wallet.dart';
 import 'models/account.dart';
+import 'models/account_resource.dart';
+import 'models/block.dart';
+import 'models/broadcast_response.dart';
+import 'models/contract_call_response.dart';
+import 'models/contract_info.dart';
+import 'models/transaction.dart';
+import 'models/transaction_info.dart';
+import 'models/validate_address.dart';
 
 class HTTPApiClient {
-  late String endpoint;
-  String? trongridApiKey;
-  HTTPApiClient(this.endpoint, [this.trongridApiKey]);
+  String endpoint;
+  HTTPApiClient(this.endpoint);
 
   Future<dynamic> fetch(
     String path, {
     String method = 'GET',
     String? body,
     Map<String, String>? headers,
-    bool stringResult = false,
-    bool imageResult = false,
   }) async {
     var fullUrl = Uri.parse("$endpoint/$path");
     http.Response? resp;
@@ -44,16 +39,7 @@ class HTTPApiClient {
       print(resp.body);
       print("=======================");
 
-      if (imageResult) return resp.bodyBytes;
-      if (stringResult) {
-        try {
-          return utf8.decode(resp.bodyBytes);
-        } catch (e) {
-          return resp.body;
-        }
-      } else {
-        return json.decode(utf8.decode(resp.bodyBytes));
-      }
+      return json.decode(resp.body);
     } catch (e) {
       rethrow;
     }
@@ -127,8 +113,7 @@ class HTTPApiClient {
   ///[endNum] - Ending block height, excluding that block.
   Future<List<Block>> getBlocksByLimitNext(int startNum, int endNum) async {
     return [
-      for (var b in await fetch('wallet/getblockbylimitnext', method: 'POST', body: json.encode({'startNum': startNum, 'endNum': endNum})))
-        Block.fromJson(b)
+      for (var b in await fetch('wallet/getblockbylimitnext', method: 'POST', body: json.encode({'startNum': startNum, 'endNum': endNum}))) Block.fromJson(b)
     ];
   }
 
